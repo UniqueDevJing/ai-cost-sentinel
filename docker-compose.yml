@@ -1,0 +1,25 @@
+version: "3.8"
+
+services:
+  sentinel-proxy:
+    build: ./sentinel-proxy
+    ports:
+      - "${SENTINEL_PORT:-8000}:8000"
+    environment:
+      - UPSTREAM_BASE_URL=${UPSTREAM_BASE_URL:-https://dashscope.aliyuncs.com/compatible-mode/v1}
+    volumes:
+      - sentinel-data:/app/data
+    restart: unless-stopped
+
+  sentinel-dashboard:
+    build: ./sentinel-dashboard
+    ports:
+      - "${DASHBOARD_PORT:-9090}:9090"
+    environment:
+      - SENTINEL_PROXY_URL=http://sentinel-proxy:8000
+    depends_on:
+      - sentinel-proxy
+    restart: unless-stopped
+
+volumes:
+  sentinel-data:

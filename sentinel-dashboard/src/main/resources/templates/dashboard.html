@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="zh-CN" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Cost Sentinel — 成本仪表盘</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <style>
+        .stat-card { transition: transform 0.2s, box-shadow 0.2s; }
+        .stat-card:hover { transform: translateY(-2px); box-shadow: 0 10px 40px rgba(0,0,0,0.12); }
+        .alert-flash { animation: pulse 2s infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.6; } }
+        .progress-bar { transition: width 0.6s ease; }
+        .call-row:hover { background-color: #f8fafc; }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+
+    <!-- 顶部导航 -->
+    <nav class="bg-white border-b border-gray-200 shadow-sm sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <div class="flex items-center space-x-3">
+                    <i class="fa fa-shield text-indigo-600 text-2xl"></i>
+                    <span class="text-xl font-bold text-gray-900">AI Cost Sentinel</span>
+                    <span class="text-xs bg-indigo-100 text-indigo-700 px-2 py-0.5 rounded-full font-mono">v0.1.0</span>
+                </div>
+                <div class="flex items-center space-x-4 text-sm text-gray-500">
+                    <span th:if="${health != null}" class="flex items-center">
+                        <span class="w-2 h-2 rounded-full mr-2"
+                              th:classappend="${health.status == 'ok'} ? 'bg-green-500' : 'bg-red-500'"></span>
+                        代理: <span th:text="${health.status == 'ok'} ? '在线' : '离线'" class="font-medium ml-1"></span>
+                    </span>
+                    <span th:if="${health == null}" class="flex items-center">
+                        <span class="w-2 h-2 rounded-full bg-red-500 mr-2"></span>
+                        代理:<span class="font-medium ml-1">离线</span>
+                    </span>
+                    <button onclick="location.reload()" class="text-gray-400 hover:text-gray-600">
+                        <i class="fa fa-refresh"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+
+        <!-- 错误提示 -->
+        <div th:if="${error}" class="bg-red-50 border border-red-200 text-red-800 px-6 py-4 rounded-lg mb-6 flex items-center">
+            <i class="fa fa-exclamation-triangle mr-3 text-red-500"></i>
+            <span th:text="${error}"></span>
+        </div>
+
+        <!-- 预算告警 -->
+        <div th:if="${budget != null && !budget.alerts.isEmpty()}" class="mb-6">
+            <div th:each="alert : ${budget.alerts}"
+                 class="px-6 py-4 rounded-lg mb-2 flex items-center"
+                 th:classappend="${alert.contains('超支')} ? 'bg-red-50 border border-red-200 text-red-800' : 'bg-yellow-50 border border-yellow-200 text-yellow-800'">
+                <i class="fa mr-3"
+                   th:classappend="${alert.contains('超支')} ? 'fa-times-circle text-red-500' : 'fa-exclamation-circle text-yellow-500'"></i>
+                <span th:text="${alert}"></span>
+            </div>
+        </div>
+
+        <!-- 核心指标卡片 -->
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            <!-- 今日费用 -->
+            <div class="stat-card bg-white rounded-xl p-6 shadow-sm border border-gray-100">
+                <div class="flex items-center justify-between mb-3">
+                    <span class="text-gray-500 text-sm">今日费用</span>
+                    <i class="fa fa-money text-indigo-400"></i>
+                </div>
+                <div class="text-3xl font-bold text-gray-900">
+                    $<span th:text="${budget != null} ? ${#numbers.formatDecimal(budget.daily_cost, 0, 'COMMA', 4, 'COMMA')} : '--'">--</span>
+                </div>
+                <div class="mt-2 text-xs text-gray-400">
+                    日预算 $<span th:text="${budget != null} ? ${#numbers.formatDecimal(budget.daily_limit, 0, 'COMMA', 2, 'COMMA')} : '5.00'">5.00</span>
+                </div>
+                <!-- 日进度条 -->
+                <div class="mt-3 w-full bg-gray-100 rounded-full h-1.5" th:if="${budget != null}">
+                    <div class="bg-indigo-500 h-1.5 rounded-full progress-bar"
+                         th:style="'width:' + ${budget.daily_usage_pct > 100 ? 100 : budget.daily_usage_pct} + '%'"
+                         th:classappend="${budget.daily_usage_pct >= 100} ? '!bg-red-500' : (${budget.daily_usage_pct >= 80} ? '!bg-yellow-500' : '')"></div>
+                </div>
+            </div>
+
+            <!-- 本月费用 -->
+            <div class="stat-card bg-white rounded-xl p-6 shadow-sm border border-gray-100">
+                <div class="flex items-center justify-between mb-3">
+                    <span class="text-gray-500 text-sm">本月费用</span>
+                    <i class="fa fa-calendar text-blue-400"></i>
+                </div>
+                <div class="text-3xl font-bold text-gray-900">
+                    $<span th:text="${budget != null} ? ${#numbers.formatDecimal(budget.monthly_cost, 0, 'COMMA', 4, 'COMMA')} : '--'">--</span>
+                </div>
+                <div class="mt-2 text-xs text-gray-400">
+                    月预算 $<span th:text="${budget != null} ? ${#numbers.formatDecimal(budget.monthly_limit, 0, 'COMMA', 2, 'COMMA')} : '50.00'">50.00</span>
+                </div>
+                <div class="mt-3 w-full bg-gray-100 rounded-full h-1.5" th:if="${budget != null}">
+                    <div class="bg-blue-500 h-1.5 rounded-full progress-bar"
+                         th:style="'width:' + ${budget.monthly_usage_pct > 100 ? 100 : budget.monthly_usage_pct} + '%'"
+                         th:classappend="${budget.monthly_usage_pct >= 100} ? '!bg-red-500' : (${budget.monthly_usage_pct >= 80} ? '!bg-yellow-500' : '')"></div>
+                </div>
+            </div>
+
+            <!-- 总调用次数 (从 stats by_model 计算) -->
+            <div class="stat-card bg-white rounded-xl p-6 shadow-sm border border-gray-100">
+                <div class="flex items-center justify-between mb-3">
+                    <span class="text-gray-500 text-sm">总调用次数</span>
+                    <i class="fa fa-paper-plane text-green-400"></i>
+                </div>
+                <div class="text-3xl font-bold text-gray-900" id="totalCalls">--</div>
+                <div class="mt-2 text-xs text-gray-400">近30天</div>
+            </div>
+
+            <!-- 使用模型数 -->
+            <div class="stat-card bg-white rounded-xl p-6 shadow-sm border border-gray-100">
+                <div class="flex items-center justify-between mb-3">
+                    <span class="text-gray-500 text-sm">使用模型</span>
+                    <i class="fa fa-cube text-purple-400"></i>
+                </div>
+                <div class="text-3xl font-bold text-gray-900" id="modelCount">--</div>
+                <div class="mt-2 text-xs text-gray-400">活跃模型种类</div>
+            </div>
+        </div>
+
+        <!-- 图表区域 -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+            <!-- 按模型费用分布 -->
+            <div class="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
+                <h3 class="text-lg font-semibold text-gray-900 mb-4">按模型费用分布</h3>
+                <div class="relative" style="height: 280px;">
+                    <canvas id="modelChart"></canvas>
+                </div>
+                <div id="modelChartEmpty" class="hidden flex items-center justify-center text-gray-400" style="height: 280px;">
+                    <div class="text-center"><i class="fa fa-inbox text-4xl block mb-2"></i>暂无数据</div>
+                </div>
+            </div>
+
+            <!-- 每日费用趋势 -->
+            <div class="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
+                <h3 class="text-lg font-semibold text-gray-900 mb-4">每日费用趋势</h3>
+                <div class="relative" style="height: 280px;">
+                    <canvas id="dailyChart"></canvas>
+                </div>
+                <div id="dailyChartEmpty" class="hidden flex items-center justify-center text-gray-400" style="height: 280px;">
+                    <div class="text-center"><i class="fa fa-line-chart text-4xl block mb-2"></i>暂无数据</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 预算设置 & 最近调用 -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+            <!-- 预算设置表单 -->
+            <div class="bg-white rounded-xl p-6 shadow-sm border border-gray-100">
+                <h3 class="text-lg font-semibold text-gray-900 mb-4">预算设置</h3>
+                <form id="budgetForm" class="space-y-4">
+                    <div>
+                        <label class="block text-sm text-gray-600 mb-1">项目名称</label>
+                        <input type="text" name="project" value="default"
+                               class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-300 focus:border-indigo-500 outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-sm text-gray-600 mb-1">日预算 (USD)</label>
+                        <input type="number" name="daily" value="5.0" step="0.5" min="0"
+                               class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-300 focus:border-indigo-500 outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-sm text-gray-600 mb-1">月预算 (USD)</label>
+                        <input type="number" name="monthly" value="50.0" step="1" min="0"
+                               class="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:ring-2 focus:ring-indigo-300 focus:border-indigo-500 outline-none">
+                    </div>
+                    <button type="submit"
+                            class="w-full bg-indigo-600 text-white rounded-lg px-4 py-2.5 text-sm font-medium hover:bg-indigo-700 transition-colors">
+                        更新预算
+                    </button>
+                </form>
+                <div id="budgetMsg" class="mt-3 text-sm text-center hidden"></div>
+            </div>
+
+            <!-- 最近调用列表 -->
+            <div class="lg:col-span-2 bg-white rounded-xl p-6 shadow-sm border border-gray-100">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-lg font-semibold text-gray-900">最近 API 调用</h3>
+                    <span class="text-xs text-gray-400" id="callCount"></span>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm">
+                        <thead>
+                            <tr class="text-left text-gray-500 border-b border-gray-100">
+                                <th class="pb-3 font-medium">时间</th>
+                                <th class="pb-3 font-medium">模型</th>
+                                <th class="pb-3 font-medium">Token(入/出)</th>
+                                <th class="pb-3 font-medium">费用</th>
+                                <th class="pb-3 font-medium">延迟</th>
+                            </tr>
+                        </thead>
+                        <tbody id="callsTable">
+                            <tr th:if="${calls == null || calls.calls == null || calls.calls.isEmpty()}">
+                                <td colspan="5" class="py-8 text-center text-gray-400">
+                                    <i class="fa fa-inbox block text-2xl mb-2"></i>暂无调用记录
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <footer class="border-t border-gray-200 bg-white mt-12">
+        <div class="max-w-7xl mx-auto px-4 py-6 text-center text-sm text-gray-400">
+            AI Cost Sentinel — 轻量 AI API 成本追踪代理 | 一行代码不改，透明拦截统计
+        </div>
+    </footer>
+
+    <script>
+        // 页面加载后从 API 获取数据并渲染
+        document.addEventListener('DOMContentLoaded', function() {
+            fetchStats();
+            fetchCalls();
+            setupBudgetForm();
+
+            // 如果后端渲染了 stats，预处理图表
+            const statsData = /*[[${stats}]]*/ null;
+            if (statsData) renderCharts(statsData);
+        });
+
+        function fetchStats() {
+            fetch('/api/stats?project=default&days=30')
+                .then(r => r.json())
+                .then(data => {
+                    renderStats(data);
+                    renderCharts(data);
+                })
+                .catch(e => console.error('获取统计失败:', e));
+        }
+
+        function fetchCalls() {
+            fetch('/api/calls?limit=20')
+                .then(r => r.json())
+                .then(data => {
+                    renderCalls(data.calls || []);
+                })
+                .catch(e => console.error('获取调用记录失败:', e));
+        }
+
+        function renderStats(data) {
+            if (!data.by_model) return;
+            let totalCalls = 0;
+            data.by_model.forEach(m => totalCalls += m.calls);
+            document.getElementById('totalCalls').textContent = totalCalls;
+            document.getElementById('modelCount').textContent = data.by_model.length;
+        }
+
+        function renderCharts(data) {
+            const byModel = data.by_model || [];
+            const byDay = data.by_day || [];
+
+            // 模型费用饼图
+            if (byModel.length > 0) {
+                document.getElementById('modelChart').style.display = 'block';
+                document.getElementById('modelChartEmpty').classList.add('hidden');
+                new Chart(document.getElementById('modelChart'), {
+                    type: 'doughnut',
+                    data: {
+                        labels: byModel.map(m => m.model),
+                        datasets: [{
+                            data: byModel.map(m => m.cost_usd || 0.01),
+                            backgroundColor: ['#6366f1', '#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#84cc16'],
+                            borderWidth: 2,
+                            borderColor: '#fff'
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { position: 'bottom', labels: { padding: 16, usePointStyle: true, pointStyleWidth: 8 } }
+                        }
+                    }
+                });
+            } else {
+                document.getElementById('modelChart').style.display = 'none';
+                document.getElementById('modelChartEmpty').classList.remove('hidden');
+            }
+
+            // 每日费用折线图
+            if (byDay.length > 0) {
+                document.getElementById('dailyChart').style.display = 'block';
+                document.getElementById('dailyChartEmpty').classList.add('hidden');
+                new Chart(document.getElementById('dailyChart'), {
+                    type: 'bar',
+                    data: {
+                        labels: byDay.map(d => d.date.slice(5)),
+                        datasets: [{
+                            label: '费用 (USD)',
+                            data: byDay.map(d => d.cost_usd),
+                            backgroundColor: '#6366f1',
+                            borderRadius: 4,
+                            borderSkipped: false
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { display: false } },
+                        scales: {
+                            x: { grid: { display: false } },
+                            y: { beginAtZero: true, ticks: { callback: v => '$' + v } }
+                        }
+                    }
+                });
+            } else {
+                document.getElementById('dailyChart').style.display = 'none';
+                document.getElementById('dailyChartEmpty').classList.remove('hidden');
+            }
+        }
+
+        function renderCalls(calls) {
+            const tbody = document.getElementById('callsTable');
+            document.getElementById('callCount').textContent = '共 ' + calls.length + ' 条';
+            if (!calls.length) return;
+
+            tbody.innerHTML = calls.map(c => {
+                const time = new Date(c.timestamp).toLocaleString('zh-CN', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' });
+                const costColor = c.cost_usd > 1 ? 'text-red-600' : (c.cost_usd > 0.1 ? 'text-yellow-600' : 'text-green-600');
+                const statusColor = c.status_code >= 400 ? 'text-red-500' : 'text-green-500';
+                return `<tr class="call-row border-b border-gray-50">
+                    <td class="py-2.5 text-gray-600 font-mono text-xs">${time}</td>
+                    <td class="py-2.5">
+                        <span class="bg-gray-100 text-gray-700 px-2 py-0.5 rounded text-xs font-mono">${escHtml(c.model)}</span>
+                    </td>
+                    <td class="py-2.5 font-mono text-xs">${c.input_tokens} / ${c.output_tokens}</td>
+                    <td class="py-2.5 font-mono text-xs ${costColor}">$${c.cost_usd.toFixed(6)}</td>
+                    <td class="py-2.5 text-gray-500 text-xs">${c.latency_ms}ms <i class="fa ${statusColor} fa-circle text-[6px] align-middle ml-1"></i></td>
+                </tr>`;
+            }).join('');
+        }
+
+        function setupBudgetForm() {
+            document.getElementById('budgetForm').addEventListener('submit', function(e) {
+                e.preventDefault();
+                const form = new FormData(this);
+                const params = new URLSearchParams();
+                params.append('project', form.get('project'));
+                params.append('daily', form.get('daily'));
+                params.append('monthly', form.get('monthly'));
+
+                fetch('/api/budget?' + params.toString(), { method: 'POST' })
+                    .then(r => r.json())
+                    .then(data => {
+                        const msg = document.getElementById('budgetMsg');
+                        msg.classList.remove('hidden');
+                        if (data.ok) {
+                            msg.className = 'mt-3 text-sm text-center text-green-600';
+                            msg.textContent = '预算已更新';
+                            setTimeout(() => location.reload(), 800);
+                        } else {
+                            msg.className = 'mt-3 text-sm text-center text-red-600';
+                            msg.textContent = '更新失败';
+                        }
+                    })
+                    .catch(() => {
+                        const msg = document.getElementById('budgetMsg');
+                        msg.classList.remove('hidden');
+                        msg.className = 'mt-3 text-sm text-center text-red-600';
+                        msg.textContent = '连接失败，请确认代理已启动';
+                    });
+            });
+        }
+
+        function escHtml(s) {
+            const d = document.createElement('div');
+            d.textContent = s;
+            return d.innerHTML;
+        }
+    </script>
+</body>
+</html>

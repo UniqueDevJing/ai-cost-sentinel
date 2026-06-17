@@ -1,135 +1,71 @@
 # AI Cost Sentinel
 
-轻量 AI API 成本追踪代理 — **一行代码不改，透明拦截统计**。
+调 AI API 的时候想知道花了多少钱，做了这个。
 
-支持所有 OpenAI 兼容 API（OpenAI / 百炼 / DeepSeek / 智谱 等），自动记录每次调用的 Token 消耗和费用，提供实时仪表盘。
+## 它能干什么
 
-## 架构
+改一行代码（把 API base_url 指向这个代理），之后的每次调用自动记录 Token 用量和费用，不用改 SDK，不用改业务逻辑。
 
-```
-你的应用 ──→ sentinel-proxy (:8000) ──→ 上游 AI API
-                  │
-                  ├── SQLite（调用记录 + 预算）
-                  │
-                  └── sentinel-dashboard (:9090) ──→ Web 仪表盘
-```
+本地 SQLite 存数据，不依赖外部数据库。超预算了会提醒你。另外写了个简单的 Web 仪表盘看趋势。
 
-## 快速开始
+我在本地跑着，追踪自己调百炼 API 的开销。
 
-### 1. 启动代理
+## 怎么用
+
+先把代理跑起来：
 
 ```bash
 cd sentinel-proxy
-
-# 安装依赖
 pip install -r requirements.txt
-
-# 配置上游 API（可选，默认从请求头自动识别）
-export UPSTREAM_BASE_URL=https://dashscope.aliyuncs.com/compatible-mode/v1
-
-# 启动代理
-python main.py
+python main.py   # 默认跑在 :8000
 ```
 
-代理启动在 `http://localhost:8000`。
+然后改代码里的 base_url：
 
-### 2. 修改你的 API 调用
-
-原来的代码：
 ```python
+# 原来
 client = OpenAI(base_url="https://api.openai.com/v1", api_key="sk-xxx")
-```
 
-改为：
-```python
+# 改成
 client = OpenAI(base_url="http://localhost:8000/v1", api_key="sk-xxx")
 ```
 
-**就改一个 URL，完全透明**。代理会自动转发、记录 Token 消耗、计算费用。
-
-### 3. 启动仪表盘（可选）
+之后每次调用，代理自动记录 Token 消耗和费用。仪表盘（可选）：
 
 ```bash
 cd sentinel-dashboard
-
-# 确认 application.yml 中 proxy-url 指向代理
-mvn spring-boot:run
+mvn spring-boot:run   # 跑在 :9090，浏览器打开看
 ```
 
-打开 `http://localhost:9090` 查看实时仪表盘。
+Docker：`docker-compose up -d` 一次性全启动。
 
-## 功能
+## 提供的 API
 
-- **透明代理** — 不改业务代码，不改 SDK，只改 base_url
-- **Token 计数** — 自动记录每次调用的输入/输出 Token
-- **费用计算** — 内置主流模型定价，自动换算 USD
-- **预算管理** — 设置日/月预算，超支告警
-- **流式支持** — 完整透传 SSE 流式响应
-- **可视化仪表盘** — 费用趋势、模型分布、调用历史
-- **零依赖存储** — SQLite，无需额外数据库
+代理在 `/v1/*` 透明转发所有请求，额外提供几个管理端点：
 
-## API 端点
+- `GET /sentinel/health` — 健康检查
+- `GET /sentinel/stats?project=&days=30` — 按模型和按日的费用统计
+- `GET /sentinel/calls?limit=50` — 最近的调用记录
+- `GET /sentinel/budget?project=` — 当前预算使用情况
+- `POST /sentinel/budget?project=&daily=&monthly=` — 设置项目预算
 
-| 端点 | 说明 |
-|------|------|
-| `/v1/*` | 透明代理，转发所有 OpenAI 兼容请求 |
-| `GET /sentinel/health` | 健康检查 |
-| `GET /sentinel/stats?project=&days=30` | 综合统计（按模型/按日） |
-| `GET /sentinel/calls?limit=50` | 最近调用记录 |
-| `GET /sentinel/budget?project=` | 预算状态 |
-| `POST /sentinel/budget?project=&daily=&monthly=` | 设置预算 |
+## 定价表
 
-## 内置模型定价
+内置了一些常用模型的价格，在 `sentinel-proxy/config.py` 里可以自己加：
 
-| 模型 | 输入/1M tokens | 输出/1M tokens |
-|------|---------------|----------------|
-| gpt-4o | $2.50 | $10.00 |
-| gpt-4o-mini | $0.15 | $0.60 |
-| gpt-4-turbo | $10.00 | $30.00 |
-| claude-3.5-sonnet | $3.00 | $15.00 |
-| deepseek-chat | $0.14 | $0.28 |
-| deepseek-reasoner | $0.55 | $2.19 |
-| qwen-plus | $0.80 | $2.00 |
-| qwen-turbo | $0.30 | $0.60 |
-| qwen-max | $2.40 | $9.60 |
-
-可在 `sentinel-proxy/config.py` 的 `MODEL_PRICING` 中添加更多模型。
-
-## Docker 部署
-
-```bash
-docker-compose up -d
-```
-
-- 代理: `http://localhost:8000`
-- 仪表盘: `http://localhost:9090`
+gpt-4o ($2.50/$10.00)、gpt-4o-mini ($0.15/$0.60)、deepseek-chat ($0.27/$1.10)、qwen-plus ($0.0028/$0.0084) 等。
 
 ## 项目结构
 
 ```
-ai-cost-sentinel/
-├── sentinel-proxy/          # Python FastAPI 代理
-│   ├── main.py              # 入口，路由注册
-│   ├── config.py            # 定价表、配置
-│   ├── proxy/
-│   │   └── forwarder.py     # 请求转发 + 费用计算
-│   ├── tracker/
-│   │   └── db.py            # SQLite 数据库操作
-│   ├── alerter/
-│   │   └── budget.py        # 预算告警
-│   └── requirements.txt
-├── sentinel-dashboard/      # Java Spring Boot 仪表盘
-│   ├── pom.xml
-│   └── src/main/java/com/costsentinel/
-│       ├── Application.java
-│       ├── config/AppConfig.java
-│       └── controller/
-│           ├── DashboardController.java
-│           └── ApiController.java
-├── tests/                   # 集成测试
-│   └── test_sentinel.py
-├── docker-compose.yml
-└── README.md
+sentinel-proxy/       # Python FastAPI 代理
+  main.py             # 入口
+  config.py           # 价格表、配置
+  proxy/forwarder.py  # 请求转发和费用计算
+  tracker/db.py       # SQLite 操作
+  alerter/budget.py   # 预算告警
+sentinel-dashboard/   # Java Spring Boot 仪表盘
+tests/                # 6 个集成测试
 ```
 
 ## License

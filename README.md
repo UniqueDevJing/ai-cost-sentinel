@@ -6,6 +6,7 @@ Supports all OpenAI-compatible APIs (OpenAI / DeepSeek / Qwen / Zhipu / etc). Au
 
 [🌐 English](README.md) | [中文](README_zh.md)
 
+[![CI](https://github.com/JING04-PRODUCER/ai-cost-sentinel/actions/workflows/python-test.yml/badge.svg)](https://github.com/JING04-PRODUCER/ai-cost-sentinel/actions/workflows/python-test.yml)
 [![Python](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-teal.svg)](https://fastapi.tiangolo.com/)
 [![Java](https://img.shields.io/badge/java-17-orange.svg)](https://adoptium.net/)

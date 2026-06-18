@@ -148,12 +148,22 @@ ai-cost-sentinel/
 
 ## 路线图
 
+- [x] 透明代理拦截 & 自动追踪
+- [x] 20+ 模型自动定价
+- [x] 日/月预算告警
 - [x] CSV 导出
 - [x] 模型成本对比
-- [x] Slack / 企业微信 Webhook 告警
-- [ ] Grafana 仪表盘模板
-- [ ] 多用户/团队支持
+- [x] Slack Webhook 通知
+- [x] Spring Boot + Chart.js 可视化仪表盘
+- [ ] PostgreSQL 持久化支持
+- [ ] 多租户隔离
+- [ ] Grafana 集成
+- [ ] 微信/飞书 Webhook 通知
 - [ ] InfluxDB 导出
+
+## 🤖 AI 辅助说明
+
+本项目在开发过程中使用了 Claude (Anthropic) 作为编程辅助工具。AI 贡献包括代码结构建议、测试生成和文档撰写辅助。所有 AI 生成的代码均经过人工审查和验证，项目的设计决策和核心逻辑由开发者独立完成。
 
 ## 许可证
 

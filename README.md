@@ -157,12 +157,22 @@ response = client.chat.completions.create(
 
 ## Roadmap
 
-- [x] Export to CSV
-- [x] Compare costs across models side-by-side
-- [x] Slack / WeCom budget alerts (webhook)
-- [ ] Grafana dashboard template
-- [ ] Multi-user / team support
+- [x] Transparent proxy with auto-tracking
+- [x] 20+ model auto-pricing
+- [x] Daily/monthly budget alerts
+- [x] CSV export
+- [x] Model cost comparison
+- [x] Slack webhook notifications
+- [x] Spring Boot + Chart.js dashboard
+- [ ] PostgreSQL persistence
+- [ ] Multi-tenant isolation
+- [ ] Grafana integration
+- [ ] WeCom / Feishu webhook
 - [ ] Export to InfluxDB
+
+## AI Assistance
+
+This project was developed with Claude (Anthropic) as a coding assistant. AI contributions include code structure suggestions, test generation, and documentation drafts. All AI-generated code has been reviewed and verified by the developer. Design decisions and core logic are independently authored.
 
 ## License
 

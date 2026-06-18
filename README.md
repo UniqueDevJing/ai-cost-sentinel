@@ -8,7 +8,7 @@ Supports all OpenAI-compatible APIs (OpenAI / DeepSeek / Qwen / Zhipu / etc). Au
 
 [![Python](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/)
 [![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-teal.svg)](https://fastapi.tiangolo.com/)
-[![Java](https://img.shields.io/badge/java-21-orange.svg)](https://adoptium.net/)
+[![Java](https://img.shields.io/badge/java-17-orange.svg)](https://adoptium.net/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 ![Category](https://img.shields.io/badge/category-llm--cost%20|%20api--proxy%20|%20token--tracking%20|%20finops-orange)
 
@@ -24,6 +24,18 @@ Supports all OpenAI-compatible APIs (OpenAI / DeepSeek / Qwen / Zhipu / etc). Au
 ```
 
 The proxy transparently forwards requests, records token usage, and calculates cost — your app code stays untouched.
+
+## vs Alternatives
+
+| Feature | AI Cost Sentinel | Langfuse | Helicone | Portkey |
+|---------|:---:|:---:|:---:|:---:|
+| Transparent proxy | ✅ | ❌ | ✅ | ✅ |
+| Zero code changes | ✅ | ❌ | ✅ | ✅ |
+| Budget alerts | ✅ | ✅ | ❌ | ✅ |
+| Self-hosted | ✅ | ✅ | ❌ | ❌ |
+| Project tagging | ✅ | ✅ | ✅ | ✅ |
+| Dashboard included | ✅ | ✅ | ✅ | ✅ |
+| Storage | SQLite (zero-dep) | PostgreSQL | Managed | Managed |
 
 ## Architecture
 

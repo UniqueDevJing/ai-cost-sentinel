@@ -11,10 +11,31 @@ from datetime import datetime, date
 
 from config import DB_PATH
 
+_pool = None
+
+
+async def get_db():
+    """获取数据库连接（连接池单例）"""
+    global _pool
+    if _pool is None:
+        _pool = await aiosqlite.connect(DB_PATH)
+        _pool.row_factory = aiosqlite.Row
+        await _pool.execute("PRAGMA journal_mode=WAL")
+        await _pool.execute("PRAGMA synchronous=NORMAL")
+    return _pool
+
+
+async def close_db():
+    """关闭数据库连接"""
+    global _pool
+    if _pool:
+        await _pool.close()
+        _pool = None
+
 
 async def init_db() -> None:
     """初始化数据库表"""
-    async with aiosqlite.connect(DB_PATH) as db:
+    db = await get_db()
         await db.execute("""
             CREATE TABLE IF NOT EXISTS api_calls (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,

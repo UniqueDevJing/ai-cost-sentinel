@@ -59,9 +59,9 @@ MODEL_PRICING = {
     "deepseek-reasoner": {"input": 0.55, "output": 2.19},
 
     # 阿里百炼 (qwen)
-    "qwen-plus": {"input": 0.0028, "output": 0.0084},  # 约 2元/1M tokens = $0.28/1M
-    "qwen-max": {"input": 0.0056, "output": 0.0168},
-    "qwen-turbo": {"input": 0.0008, "output": 0.0024},
+    "qwen-plus": {"input": 0.80, "output": 2.80},
+    "qwen-max": {"input": 2.40, "output": 9.60},
+    "qwen-turbo": {"input": 0.30, "output": 0.60},
 
     # 默认（未知模型）
     "default": {"input": 1.00, "output": 4.00},

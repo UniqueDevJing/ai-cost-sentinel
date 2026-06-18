@@ -1,17 +1,13 @@
-# AI Cost Sentinel
 __pycache__/
-*.pyc
-*.db
-.env
-.venv/
-venv/
+*.py[cod]
 *.egg-info/
 dist/
 build/
-.idea/
-.vscode/
-*.iml
+.venv/
+venv/
+*.db
+.env
+.env.*
+*.local
+secrets/**
 target/
-node_modules/
-.DS_Store
-Thumbs.db

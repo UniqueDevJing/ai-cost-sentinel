@@ -15,9 +15,12 @@ from openai import OpenAI
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "sentinel-proxy"))
 
-# 百炼 API 配置（直接从代理走）
-BAILIAN_KEY = "sk-ws-H.REPMMPD.YY6S.MEQCIF3XAMIciVIYF7CLTne19PdWXxB0_73hznQJx-dVFYspAiA42uASWTUxPXvA7FJ7cnICsU396hMwj1HkpddtQ94qCw"
-BAILIAN_BASE = "https://ws-eq9tcvlhw5m65ftm.cn-beijing.maas.aliyuncs.com/compatible-mode"
+# 百炼 API 配置（从环境变量读取，不硬编码密钥）
+BAILIAN_KEY = os.environ.get("BAILIAN_API_KEY", "")
+BAILIAN_BASE = os.environ.get("BAILIAN_BASE_URL", "https://ws-eq9tcvlhw5m65ftm.cn-beijing.maas.aliyuncs.com/compatible-mode")
+
+# 如果未设置环境变量，跳过需要真实 API 调用的测试
+NEEDS_REAL_API = bool(BAILIAN_KEY)
 
 # 代理地址
 PROXY_BASE = "http://localhost:8000"

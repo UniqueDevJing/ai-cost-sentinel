@@ -33,7 +33,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(
     title="AI Cost Sentinel",
-    version="0.1.0",
+    version="0.2.0",
     description="轻量 AI API 成本追踪代理 — 一行代码不改，透明拦截统计",
     lifespan=lifespan,
 )
@@ -144,4 +144,4 @@ async def compare_model_costs(project: str = "default", days: int = 30):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run("main:app", host=PROXY_HOST, port=PROXY_PORT, reload=True)
+    uvicorn.run("main:app", host=PROXY_HOST, port=PROXY_PORT, reload=False)

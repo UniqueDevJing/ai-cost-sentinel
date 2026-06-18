@@ -91,7 +91,7 @@ async def check_budget(project: str = "default") -> BudgetAlert:
 
 async def _send_webhook(alert: BudgetAlert):
     """发送 Slack 兼容 Webhook 通知"""
-    text = "\n".join(f"[{'超支' if a.isascii() and '超支' in a else '警告'}] {a}" for a in alert.messages)
+    text = "\n".join(f"[{'超支' if '超支' in a else '警告'}] {a}" for a in alert.messages)
     payload = {
         "text": f"*AI Cost Sentinel — {alert.project}*\n{text}",
         "attachments": [{

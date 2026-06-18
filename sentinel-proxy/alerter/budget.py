@@ -1,10 +1,15 @@
 """
-预算告警 — 检测费用是否超出预算，生成告警信息
+预算告警 — 检测费用是否超出预算，支持 Webhook 通知
 """
 
 from __future__ import annotations
 
+import os
+import httpx
+
 from tracker.db import get_daily_cost, get_monthly_cost, get_budget
+
+WEBHOOK_URL = os.getenv("SENTINEL_WEBHOOK_URL", "")
 
 
 class BudgetAlert:
@@ -21,6 +26,7 @@ class BudgetAlert:
         self.daily_limit = 0.0
         self.monthly_limit = 0.0
         self.messages: list[str] = []
+        self.webhook_sent = False
 
     def to_dict(self) -> dict:
         return {
@@ -34,11 +40,12 @@ class BudgetAlert:
             "daily_limit": self.daily_limit,
             "monthly_limit": self.monthly_limit,
             "alerts": self.messages,
+            "webhook_sent": self.webhook_sent,
         }
 
 
 async def check_budget(project: str = "default") -> BudgetAlert:
-    """检查预算状态"""
+    """检查预算状态，超支时发送 Webhook 通知"""
     alert = BudgetAlert(project)
 
     budget = await get_budget(project)
@@ -75,4 +82,28 @@ async def check_budget(project: str = "default") -> BudgetAlert:
                 f"月预算使用 {alert.monthly_usage_pct:.0f}%，已用 {alert.monthly_cost:.4f} / {alert.monthly_limit:.2f} USD"
             )
 
+    # 发送 Webhook
+    if alert.messages and WEBHOOK_URL:
+        await _send_webhook(alert)
+
     return alert
+
+
+async def _send_webhook(alert: BudgetAlert):
+    """发送 Slack 兼容 Webhook 通知"""
+    text = "\n".join(f"[{'超支' if a.isascii() and '超支' in a else '警告'}] {a}" for a in alert.messages)
+    payload = {
+        "text": f"*AI Cost Sentinel — {alert.project}*\n{text}",
+        "attachments": [{
+            "fields": [
+                {"title": "日用量", "value": f"${alert.daily_cost:.2f} / ${alert.daily_limit:.2f}", "short": True},
+                {"title": "月用量", "value": f"${alert.monthly_cost:.2f} / ${alert.monthly_limit:.2f}", "short": True},
+            ]
+        }]
+    }
+    try:
+        async with httpx.AsyncClient() as client:
+            await client.post(WEBHOOK_URL, json=payload, timeout=10)
+            alert.webhook_sent = True
+    except Exception:
+        pass

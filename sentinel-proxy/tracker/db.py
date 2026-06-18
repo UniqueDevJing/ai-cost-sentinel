@@ -182,3 +182,57 @@ async def get_budget(project: str) -> dict:
         if row:
             return {"daily_limit": row[0][0], "monthly_limit": row[0][1]}
         return {"daily_limit": 5.0, "monthly_limit": 50.0}
+
+
+async def export_csv(project: str = "default", days: int = 30) -> str:
+    """导出调用记录为 CSV 字符串"""
+    import csv, io
+    async with aiosqlite.connect(DB_PATH) as db:
+        rows = await db.execute_fetchall(
+            """SELECT timestamp, model, endpoint, project, input_tokens, output_tokens,
+                      cost_usd, latency_ms, status_code
+               FROM api_calls WHERE project = ?
+               AND date >= date('now', ?)
+               ORDER BY id DESC""",
+            (project, f"-{days} days"),
+        )
+    output = io.StringIO()
+    w = csv.writer(output)
+    w.writerow(["timestamp", "model", "endpoint", "project", "input_tokens",
+                "output_tokens", "cost_usd", "latency_ms", "status_code"])
+    for r in rows:
+        w.writerow(r)
+    return output.getvalue()
+
+
+async def compare_models(project: str = "default", days: int = 30) -> list[dict]:
+    """对比各模型的成本效率"""
+    async with aiosqlite.connect(DB_PATH) as db:
+        rows = await db.execute_fetchall(
+            """SELECT model,
+                      COUNT(*) as calls,
+                      COALESCE(SUM(cost_usd), 0) as total_cost,
+                      COALESCE(SUM(input_tokens), 0) as total_input,
+                      COALESCE(SUM(output_tokens), 0) as total_output,
+                      COALESCE(AVG(cost_usd), 0) as avg_cost,
+                      COALESCE(AVG(latency_ms), 0) as avg_latency
+               FROM api_calls WHERE project = ?
+               AND date >= date('now', ?)
+               GROUP BY model ORDER BY total_cost DESC""",
+            (project, f"-{days} days"),
+        )
+    result = []
+    for r in rows:
+        total_tokens = r[3] + r[4]
+        cost_per_1k = round(r[2] / total_tokens * 1000, 6) if total_tokens > 0 else 0
+        result.append({
+            "model": r[0],
+            "calls": r[1],
+            "total_cost_usd": round(r[2], 6),
+            "total_input_tokens": r[3],
+            "total_output_tokens": r[4],
+            "avg_cost_per_call_usd": round(r[5], 6),
+            "avg_latency_ms": round(r[6], 1),
+            "cost_per_1k_tokens_usd": cost_per_1k,
+        })
+    return result

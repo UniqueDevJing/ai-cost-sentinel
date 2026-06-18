@@ -84,6 +84,8 @@ mvn spring-boot:run   # → http://localhost:9090
 | `GET /sentinel/calls?limit=50` | Recent call records |
 | `GET /sentinel/budget?project=` | Budget status |
 | `POST /sentinel/budget?project=&daily=&monthly=` | Set budget alerts |
+| `GET /sentinel/export/csv?project=&days=30` | Export call records as CSV |
+| `GET /sentinel/compare?project=&days=30` | Model cost efficiency comparison |
 
 ## Supported Models & Pricing
 
@@ -153,11 +155,12 @@ response = client.chat.completions.create(
 
 ## Roadmap
 
+- [x] Export to CSV
+- [x] Compare costs across models side-by-side
+- [x] Slack / WeCom budget alerts (webhook)
 - [ ] Grafana dashboard template
 - [ ] Multi-user / team support
-- [ ] Slack / WeCom budget alerts
-- [ ] Export to CSV / InfluxDB
-- [ ] Compare costs across models side-by-side
+- [ ] Export to InfluxDB
 
 ## License
 

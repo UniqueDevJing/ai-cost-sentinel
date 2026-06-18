@@ -18,7 +18,7 @@ from fastapi import FastAPI, Request, Response
 from fastapi.responses import StreamingResponse, JSONResponse
 
 from config import PROXY_HOST, PROXY_PORT
-from tracker.db import init_db, get_daily_cost, get_monthly_cost, get_stats, get_recent_calls, setup_budget
+from tracker.db import init_db, get_daily_cost, get_monthly_cost, get_stats, get_recent_calls, setup_budget, export_csv, compare_models
 from proxy.forwarder import forward_request
 from alerter.budget import check_budget
 
@@ -88,7 +88,7 @@ async def proxy_v1(request: Request, path: str):
 
 @app.get("/sentinel/health")
 async def health():
-    return {"status": "ok", "service": "AI Cost Sentinel", "version": "0.1.0"}
+    return {"status": "ok", "service": "AI Cost Sentinel", "version": "0.2.0"}
 
 
 @app.get("/sentinel/stats")
@@ -117,6 +117,25 @@ async def get_budget_status(project: str = "default"):
     """查看预算状态"""
     alert = await check_budget(project)
     return alert.to_dict()
+
+
+@app.get("/sentinel/export/csv")
+async def export_calls_csv(project: str = "default", days: int = 30):
+    """导出调用记录为 CSV"""
+    from fastapi.responses import PlainTextResponse
+    csv_data = await export_csv(project, days)
+    return PlainTextResponse(
+        csv_data,
+        media_type="text/csv",
+        headers={"Content-Disposition": f"attachment; filename=sentinel-{project}-{days}d.csv"}
+    )
+
+
+@app.get("/sentinel/compare")
+async def compare_model_costs(project: str = "default", days: int = 30):
+    """对比各模型的成本效率"""
+    models = await compare_models(project, days)
+    return {"project": project, "days": days, "models": models}
 
 
 # ============================================================

@@ -1,73 +1,164 @@
 # AI Cost Sentinel
 
-调 AI API 的时候想知道花了多少钱，做了这个。
+**Lightweight AI API cost tracking proxy — zero code changes, transparently intercept and track every API call.**
 
-## 它能干什么
+Supports all OpenAI-compatible APIs (OpenAI / DeepSeek / Qwen / Zhipu / etc). Automatically records token consumption and cost for every request. Real-time dashboard included.
 
-改一行代码（把 API base_url 指向这个代理），之后的每次调用自动记录 Token 用量和费用，不用改 SDK，不用改业务逻辑。
+[![Python](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.115+-teal.svg)](https://fastapi.tiangolo.com/)
+[![Java](https://img.shields.io/badge/java-21-orange.svg)](https://adoptium.net/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+![Category](https://img.shields.io/badge/category-llm--cost%20|%20api--proxy%20|%20token--tracking%20|%20finops-orange)
 
-本地 SQLite 存数据，不依赖外部数据库。超预算了会提醒你。另外写了个简单的 Web 仪表盘看趋势。
+> 💰 **LLM Cost Tracking · Token Monitoring · API Proxy · AI FinOps**
 
-我在本地跑着，追踪自己调百炼 API 的开销。
+## One-Line Integration
 
-## 怎么用
+**The only change you need:** update `base_url` to point to the proxy. That's it.
 
-先把代理跑起来：
+```diff
+- client = OpenAI(base_url="https://api.openai.com/v1", api_key="sk-xxx")
++ client = OpenAI(base_url="http://localhost:8000/v1", api_key="sk-xxx")
+```
+
+The proxy transparently forwards requests, records token usage, and calculates cost — your app code stays untouched.
+
+## Architecture
+
+```
+Your App ──→ sentinel-proxy (:8000) ──→ Upstream AI API
+                  │
+                  ├── SQLite (call records + budgets)
+                  │
+                  └── sentinel-dashboard (:9090) ──→ Web Dashboard
+```
+
+## Quick Start
+
+### 1. Start the proxy
 
 ```bash
 cd sentinel-proxy
 pip install -r requirements.txt
-python main.py   # 默认跑在 :8000
+
+# Optional: set upstream API
+export UPSTREAM_BASE_URL=https://dashscope.aliyuncs.com/compatible-mode/v1
+
+python main.py  # → http://localhost:8000
 ```
 
-然后改代码里的 base_url：
+### 2. Point your app at the proxy
 
 ```python
-# 原来
-client = OpenAI(base_url="https://api.openai.com/v1", api_key="sk-xxx")
-
-# 改成
 client = OpenAI(base_url="http://localhost:8000/v1", api_key="sk-xxx")
+# Everything else stays the same — SDK, methods, parameters
 ```
 
-之后每次调用，代理自动记录 Token 消耗和费用。仪表盘（可选）：
+### 3. Dashboard (optional)
 
 ```bash
 cd sentinel-dashboard
-mvn spring-boot:run   # 跑在 :9090，浏览器打开看
+mvn spring-boot:run   # → http://localhost:9090
 ```
 
-Docker：`docker-compose up -d` 一次性全启动。
+## Features
 
-## 提供的 API
+| Feature | Description |
+|---------|-------------|
+| 🔍 **Transparent Proxy** | No SDK changes, no code wrapping — just change base_url |
+| 📊 **Token Counting** | Automatic input/output token tracking per call |
+| 💰 **Cost Calculation** | Built-in pricing for 20+ models, auto-converts to USD |
+| 📈 **Budget Management** | Set daily/monthly budgets with overage alerts |
+| 🌊 **Streaming Support** | Full SSE passthrough for streaming responses |
+| 📉 **Visual Dashboard** | Cost trends, model distribution, call history |
+| 💾 **Zero-Dependency Storage** | SQLite — no external database required |
+| 🏷️ **Project Tagging** | Track costs per project for team usage |
 
-代理在 `/v1/*` 透明转发所有请求，额外提供几个管理端点：
+## API Endpoints
 
-- `GET /sentinel/health` — 健康检查
-- `GET /sentinel/stats?project=&days=30` — 按模型和按日的费用统计
-- `GET /sentinel/calls?limit=50` — 最近的调用记录
-- `GET /sentinel/budget?project=` — 当前预算使用情况
-- `POST /sentinel/budget?project=&daily=&monthly=` — 设置项目预算
+| Endpoint | Description |
+|----------|-------------|
+| `/v1/*` | Transparent proxy — forwards all OpenAI-compatible requests |
+| `GET /sentinel/health` | Health check |
+| `GET /sentinel/stats?project=&days=30` | Aggregated stats (by model, by day) |
+| `GET /sentinel/calls?limit=50` | Recent call records |
+| `GET /sentinel/budget?project=` | Budget status |
+| `POST /sentinel/budget?project=&daily=&monthly=` | Set budget alerts |
 
-## 定价表
+## Supported Models & Pricing
 
-内置了一些常用模型的价格，在 `sentinel-proxy/config.py` 里可以自己加：
+| Model | Input /1M tokens | Output /1M tokens |
+|-------|:-----------------:|:------------------:|
+| gpt-4o | $2.50 | $10.00 |
+| gpt-4o-mini | $0.15 | $0.60 |
+| gpt-4-turbo | $10.00 | $30.00 |
+| claude-sonnet-4-6 | $3.00 | $15.00 |
+| claude-haiku-4-5 | $0.80 | $4.00 |
+| claude-opus-4-7 | $15.00 | $75.00 |
+| deepseek-chat | $0.27 | $1.10 |
+| deepseek-reasoner | $0.55 | $2.19 |
+| qwen-plus | $0.80 | $2.80 |
+| qwen-turbo | $0.30 | $0.60 |
+| qwen-max | $2.40 | $9.60 |
 
-gpt-4o ($2.50/$10.00)、gpt-4o-mini ($0.15/$0.60)、deepseek-chat ($0.27/$1.10)、qwen-plus ($0.0028/$0.0084) 等。
+> Add more models in `sentinel-proxy/config.py` → `MODEL_PRICING`.
 
-## 项目结构
+## Docker
+
+```bash
+docker-compose up -d
+# Proxy: http://localhost:8000
+# Dashboard: http://localhost:9090
+```
+
+## Project Structure
 
 ```
-sentinel-proxy/       # Python FastAPI 代理
-  main.py             # 入口
-  config.py           # 价格表、配置
-  proxy/forwarder.py  # 请求转发和费用计算
-  tracker/db.py       # SQLite 操作
-  alerter/budget.py   # 预算告警
-sentinel-dashboard/   # Java Spring Boot 仪表盘
-tests/                # 6 个集成测试
+ai-cost-sentinel/
+├── sentinel-proxy/          # Python FastAPI proxy
+│   ├── main.py              # Entry point, route registration
+│   ├── config.py            # Pricing table, configuration
+│   ├── proxy/
+│   │   └── forwarder.py     # Request forwarding + cost calculation
+│   ├── tracker/
+│   │   └── db.py            # SQLite database operations
+│   ├── alerter/
+│   │   └── budget.py        # Budget alerts
+│   └── requirements.txt
+├── sentinel-dashboard/      # Java Spring Boot dashboard
+│   ├── pom.xml
+│   └── src/main/java/com/costsentinel/
+├── tests/
+│   └── test_sentinel.py
+├── docker-compose.yml
+└── README.md
 ```
+
+## Paired with PromptSlim
+
+**Slim before call → Track after call.** Complete cost optimization loop.
+
+```python
+from promptslim import quick_slim
+import openai
+
+report = quick_slim(my_prompt)
+client = openai.OpenAI(base_url="http://localhost:8000/v1")
+response = client.chat.completions.create(
+    model="gpt-4o",
+    messages=[{"role": "user", "content": report.slimmed}]
+)
+# Sentinel auto-tracks actual cost, PromptSlim estimates savings
+```
+
+## Roadmap
+
+- [ ] Grafana dashboard template
+- [ ] Multi-user / team support
+- [ ] Slack / WeCom budget alerts
+- [ ] Export to CSV / InfluxDB
+- [ ] Compare costs across models side-by-side
 
 ## License
 
-MIT
+MIT — see [LICENSE](LICENSE)

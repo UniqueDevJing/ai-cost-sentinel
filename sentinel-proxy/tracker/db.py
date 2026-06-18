@@ -36,40 +36,40 @@ async def close_db():
 async def init_db() -> None:
     """初始化数据库表"""
     db = await get_db()
-        await db.execute("""
-            CREATE TABLE IF NOT EXISTS api_calls (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                timestamp TEXT NOT NULL,
-                date TEXT NOT NULL,
-                model TEXT NOT NULL,
-                endpoint TEXT NOT NULL,
-                project TEXT DEFAULT 'default',
-                user_id TEXT DEFAULT '',
-                input_tokens INTEGER DEFAULT 0,
-                output_tokens INTEGER DEFAULT 0,
-                cost_usd REAL DEFAULT 0.0,
-                latency_ms INTEGER DEFAULT 0,
-                status_code INTEGER DEFAULT 200,
-                error_msg TEXT DEFAULT '',
-                request_id TEXT DEFAULT ''
-            )
-        """)
-        await db.execute("""
-            CREATE INDEX IF NOT EXISTS idx_date ON api_calls(date)
-        """)
-        await db.execute("""
-            CREATE INDEX IF NOT EXISTS idx_project ON api_calls(project)
-        """)
-        await db.execute("""
-            CREATE TABLE IF NOT EXISTS budgets (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                project TEXT NOT NULL UNIQUE,
-                daily_limit REAL NOT NULL DEFAULT 5.0,
-                monthly_limit REAL NOT NULL DEFAULT 50.0,
-                alert_enabled INTEGER NOT NULL DEFAULT 1
-            )
-        """)
-        await db.commit()
+    await db.execute("""
+        CREATE TABLE IF NOT EXISTS api_calls (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            timestamp TEXT NOT NULL,
+            date TEXT NOT NULL,
+            model TEXT NOT NULL,
+            endpoint TEXT NOT NULL,
+            project TEXT DEFAULT 'default',
+            user_id TEXT DEFAULT '',
+            input_tokens INTEGER DEFAULT 0,
+            output_tokens INTEGER DEFAULT 0,
+            cost_usd REAL DEFAULT 0.0,
+            latency_ms INTEGER DEFAULT 0,
+            status_code INTEGER DEFAULT 200,
+            error_msg TEXT DEFAULT '',
+            request_id TEXT DEFAULT ''
+        )
+    """)
+    await db.execute("""
+        CREATE INDEX IF NOT EXISTS idx_date ON api_calls(date)
+    """)
+    await db.execute("""
+        CREATE INDEX IF NOT EXISTS idx_project ON api_calls(project)
+    """)
+    await db.execute("""
+        CREATE TABLE IF NOT EXISTS budgets (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            project TEXT NOT NULL UNIQUE,
+            daily_limit REAL NOT NULL DEFAULT 5.0,
+            monthly_limit REAL NOT NULL DEFAULT 50.0,
+            alert_enabled INTEGER NOT NULL DEFAULT 1
+        )
+    """)
+    await db.commit()
 
 
 async def log_call(

@@ -13,10 +13,6 @@ jobs:
       matrix:
         python-version: ["3.10", "3.11", "3.12"]
 
-    defaults:
-      run:
-        working-directory: sentinel-proxy
-
     steps:
     - uses: actions/checkout@v4
 
@@ -28,17 +24,19 @@ jobs:
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
-        pip install -r requirements.txt
+        pip install -r sentinel-proxy/requirements.txt
         pip install pytest pytest-asyncio
 
-    - name: Syntax check (all Python files)
+    - name: Syntax check
+      working-directory: sentinel-proxy
       run: |
         python -m py_compile main.py
         python -m py_compile config.py
         python -c "import py_compile; [py_compile.compile(f, doraise=True) for f in ['tracker/db.py', 'proxy/forwarder.py', 'alerter/budget.py']]"
 
     - name: Import verification
+      working-directory: sentinel-proxy
       run: python -c "from main import app; print('Import OK')"
 
-    - name: Unit tests (mock)
-      run: python -m pytest tests/ -v --tb=short || echo "::warning ::Some tests require real API key"
+    - name: Run mock tests
+      run: python -m pytest tests/test_mock.py -v --tb=short

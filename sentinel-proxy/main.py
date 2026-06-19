@@ -8,7 +8,7 @@ from fastapi import FastAPI, Request, Depends, HTTPException
 from fastapi.responses import Response, StreamingResponse, JSONResponse
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 
-from config import ADMIN_TOKEN
+from config import ADMIN_TOKEN, BUDGET_MODE
 from tracker.db import (
     init_db, get_stats, get_recent_calls, get_budget, setup_budget,
     export_csv, get_daily_cost, get_monthly_cost,
@@ -48,6 +48,32 @@ async def proxy_v1(request: Request, path: str):
     project = request.headers.get("x-sentinel-project", "default")
     if not project.replace("-", "").isalnum():
         return JSONResponse(status_code=400, content={"error": "项目名只能包含字母、数字和横线"})
+
+    if BUDGET_MODE == "reject":
+        budget = await get_budget(project)
+        daily = await get_daily_cost(project)
+        monthly = await get_monthly_cost(project)
+        if budget["daily_limit"] > 0 and daily >= budget["daily_limit"]:
+            return JSONResponse(
+                status_code=429,
+                content={
+                    "error": "日预算已耗尽",
+                    "daily_cost": round(daily, 4),
+                    "daily_limit": budget["daily_limit"],
+                    "project": project,
+                },
+            )
+        if budget["monthly_limit"] > 0 and monthly >= budget["monthly_limit"]:
+            return JSONResponse(
+                status_code=429,
+                content={
+                    "error": "月预算已耗尽",
+                    "monthly_cost": round(monthly, 4),
+                    "monthly_limit": budget["monthly_limit"],
+                    "project": project,
+                },
+            )
+
     try:
         result = await forward_request(
             method=request.method,
@@ -84,7 +110,7 @@ async def proxy_v1(request: Request, path: str):
 
 @app.get("/sentinel/health")
 async def health():
-    return {"status": "ok", "version": "0.2.0"}
+    return {"status": "ok", "version": "0.3.0", "budget_mode": BUDGET_MODE}
 
 
 @app.get("/sentinel/stats")

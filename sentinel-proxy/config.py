@@ -8,6 +8,7 @@ UPSTREAM_API_KEY = os.getenv("UPSTREAM_API_KEY", "")
 UPSTREAM_TIMEOUT = float(os.getenv("UPSTREAM_TIMEOUT", "120"))
 ADMIN_TOKEN = os.getenv("SENTINEL_ADMIN_TOKEN", "")
 WEBHOOK_URL = os.getenv("SENTINEL_WEBHOOK_URL", "")
+BUDGET_MODE = os.getenv("SENTINEL_BUDGET_MODE", "notify_only")  # "reject" | "notify_only"
 
 PRICING = {
     "gpt-4o": (2.50, 10.00),

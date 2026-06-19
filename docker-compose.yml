@@ -6,17 +6,23 @@ services:
     ports:
       - "${SENTINEL_PORT:-8000}:8000"
     environment:
-      - UPSTREAM_BASE_URL=${UPSTREAM_BASE_URL:-https://dashscope.aliyuncs.com/compatible-mode/v1}
+      - UPSTREAM_BASE_URL=${UPSTREAM_BASE_URL:-https://api.openai.com/v1}
+      - UPSTREAM_API_KEY=${UPSTREAM_API_KEY:-}
+      - SENTINEL_ADMIN_TOKEN=${SENTINEL_ADMIN_TOKEN:-}
+      - SENTINEL_BUDGET_MODE=${SENTINEL_BUDGET_MODE:-notify_only}
+      - SENTINEL_WEBHOOK_URL=${SENTINEL_WEBHOOK_URL:-}
     volumes:
-      - sentinel-data:/app/data
+      - sentinel-data:/app
     restart: unless-stopped
 
-  sentinel-dashboard:
-    build: ./sentinel-dashboard
+  dashboard:
+    build: ./dashboard
     ports:
-      - "${DASHBOARD_PORT:-9090}:9090"
+      - "${DASHBOARD_PORT:-8501}:8501"
+    volumes:
+      - sentinel-data:/data
     environment:
-      - SENTINEL_PROXY_URL=http://sentinel-proxy:8000
+      - DB_PATH=/data/sentinel.db
     depends_on:
       - sentinel-proxy
     restart: unless-stopped

@@ -26,6 +26,12 @@ Supports all OpenAI-compatible APIs (OpenAI / DeepSeek / Qwen / Zhipu / etc). Au
 
 The proxy transparently forwards requests, records token usage, and calculates cost — your app code stays untouched.
 
+## Demo
+
+![AI Cost Sentinel Demo](demo.png)
+
+*Start the proxy → make any API call → cost tracked in real-time.*
+
 ## vs Alternatives
 
 | Feature | AI Cost Sentinel | Langfuse | Helicone | Portkey |

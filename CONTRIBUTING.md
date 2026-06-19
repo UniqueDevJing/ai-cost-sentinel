@@ -27,7 +27,7 @@ cd sentinel-dashboard && ./mvnw test
 
 ## Adding Model Pricing
 
-Add entries to `MODEL_PRICING` in `sentinel-proxy/config.py`:
+Add entries to `PRICING` in `sentinel-proxy/config.py`:
 
 ```python
 "model-id": {"input": 0.00, "output": 0.00}  # per 1M tokens

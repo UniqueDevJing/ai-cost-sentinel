@@ -1,5 +1,16 @@
 # Changelog
 
+## [0.3.0] - 2026-06-19
+
+### Changed
+- Simplified config: PRICING dict, calculate_cost function
+- Async SQLite with connection pooling (WAL mode)
+- Admin token auth for /sentinel/* endpoints
+- Path whitelist for proxy (ALLOWED_PREFIXES)
+- Input validation for project names
+- Streamlined forwarder with error handling
+- Removed pydantic and python-dotenv dependencies
+
 ## [0.2.0] - 2026-06-17
 
 ### Added

@@ -1,6 +1,6 @@
 # AI Cost Sentinel
 
-**Lightweight AI API cost tracking proxy — zero code changes, transparently intercept and track every API call.**
+**Lightweight AI API cost tracking proxy — change your base_url and see where every dollar goes.**
 
 Supports all OpenAI-compatible APIs (OpenAI / DeepSeek / Qwen / Zhipu / etc). Automatically records token consumption and cost for every request. Real-time dashboard included.
 
@@ -36,13 +36,13 @@ The proxy transparently forwards requests, records token usage, and calculates c
 
 | Feature | AI Cost Sentinel | Langfuse | Helicone | Portkey |
 |---------|:---:|:---:|:---:|:---:|
-| Transparent proxy | ✅ | ❌ | ✅ | ✅ |
-| Zero code changes | ✅ | ❌ | ✅ | ✅ |
-| Budget alerts | ✅ | ✅ | ❌ | ✅ |
-| Self-hosted | ✅ | ✅ | ❌ | ❌ |
-| Project tagging | ✅ | ✅ | ✅ | ✅ |
-| Dashboard included | ✅ | ✅ | ✅ | ✅ |
-| Storage | SQLite (zero-dep) | PostgreSQL | Managed | Managed |
+| Access method | Change base_url | SDK / proxy | Change base_url | Change base_url |
+| Self-hosted | Yes (SQLite single file) | Yes (PostgreSQL) | Yes (Enterprise) | No |
+| Budget alerts | Yes | Yes | Yes | Yes |
+| Dashboard | Yes (Streamlit) | Yes (more features) | Yes | Yes |
+| Who it's for | Personal / small team | Enterprise LLM observability | Enterprise gateway | SaaS gateway |
+
+If your team already uses Langfuse, there's no need to switch. Sentinel is for quickly understanding API costs without setting up databases or SDKs.
 
 ## Architecture
 
@@ -78,22 +78,22 @@ client = OpenAI(base_url="http://localhost:8000/v1", api_key="sk-xxx")
 ### 3. Dashboard (optional)
 
 ```bash
-cd sentinel-dashboard
-mvn spring-boot:run   # → http://localhost:9090
+pip install streamlit pandas plotly
+streamlit run sentinel-proxy/dashboard.py   # → http://localhost:8501
 ```
 
 ## Features
 
 | Feature | Description |
 |---------|-------------|
-| 🔍 **Transparent Proxy** | No SDK changes, no code wrapping — just change base_url |
-| 📊 **Token Counting** | Automatic input/output token tracking per call |
-| 💰 **Cost Calculation** | Built-in pricing for 20+ models, auto-converts to USD |
-| 📈 **Budget Management** | Set daily/monthly budgets with overage alerts |
-| 🌊 **Streaming Support** | Full SSE passthrough for streaming responses |
-| 📉 **Visual Dashboard** | Cost trends, model distribution, call history |
-| 💾 **Zero-Dependency Storage** | SQLite — no external database required |
-| 🏷️ **Project Tagging** | Track costs per project for team usage |
+| Transparent Proxy | No SDK changes, no code wrapping — just change base_url |
+| Token Counting | Automatic input/output token tracking per call |
+| Cost Calculation | Built-in pricing for 20+ models, auto-converts to USD |
+| Budget Management | Set daily/monthly budgets with hard rejection or notification |
+| Streaming Support | Full SSE passthrough for streaming responses |
+| Visual Dashboard | Streamlit — cost trends, model distribution, call history |
+| Zero-Dependency Storage | SQLite — no external database required |
+| Project Tagging | Track costs per project via x-sentinel-project header |
 
 ## API Endpoints
 
@@ -174,20 +174,26 @@ response = client.chat.completions.create(
 # Sentinel auto-tracks actual cost, PromptSlim estimates savings
 ```
 
+## 已知限制
+
+- **SQLite 不适合高并发**：`log_call()` 每次调用都新建连接，日均 < 10 万次调用够用，超过需要换 PostgreSQL
+- **定价表在 `config.py` 里硬编码**：API 调价后需要手动更新。改之前看一眼注释里的数据来源链接
+- **Streamlit 仪表盘需要单独启动**：`streamlit run dashboard.py`，不是 all-in-one 二进制
+- **流式响应的 `x-sentinel-cost` 头在整个流完成后才能计算**——这是因为 SSE 的 usage 信息只在最后一个 chunk 出现
+
 ## Roadmap
 
 - [x] Transparent proxy with auto-tracking
 - [x] 20+ model auto-pricing
-- [x] Daily/monthly budget alerts
+- [x] Daily/monthly budget alerts with hard rejection
 - [x] CSV export
 - [x] Model cost comparison
 - [x] Slack webhook notifications
-- [x] Spring Boot + Chart.js dashboard
+- [x] Streamlit dashboard
 - [ ] PostgreSQL persistence
 - [ ] Multi-tenant isolation
 - [ ] Grafana integration
 - [ ] WeCom / Feishu webhook
-- [ ] Export to InfluxDB
 
 ## License
 

@@ -1,9 +1,12 @@
-FROM eclipse-temurin:17-jre-alpine
-
+FROM maven:3.9-eclipse-temurin-21-alpine AS build
 WORKDIR /app
+COPY pom.xml .
+RUN mvn dependency:go-offline -B
+COPY src ./src
+RUN mvn package -DskipTests -B
 
-COPY target/sentinel-dashboard-*.jar app.jar
-
+FROM eclipse-temurin:21-jre-alpine
+WORKDIR /app
+COPY --from=build /app/target/sentinel-dashboard-*.jar app.jar
 EXPOSE 9090
-
 ENTRYPOINT ["java", "-jar", "/app/app.jar"]

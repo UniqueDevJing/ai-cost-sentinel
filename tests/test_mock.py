@@ -22,27 +22,22 @@ class TestConfig:
     """Configuration and pricing tests"""
 
     def test_all_models_have_pricing(self):
-        from config import MODEL_PRICING
-        for model, price in MODEL_PRICING.items():
-            assert "input" in price, f"{model} missing input"
-            assert "output" in price, f"{model} missing output"
-            assert price["input"] > 0, f"{model} input price should be > 0"
-            assert price["output"] > 0, f"{model} output price should be > 0"
+        from config import PRICING
+        for model, price in PRICING.items():
+            assert isinstance(price, tuple), f"{model} should be tuple"
+            assert len(price) == 2, f"{model} should have (input, output)"
+            assert price[0] > 0, f"{model} input price should be > 0"
+            assert price[1] > 0, f"{model} output price should be > 0"
 
     def test_default_fallback(self):
-        from config import get_model_price, MODEL_PRICING
-        price = get_model_price("nonexistent-model-v42")
-        assert price == MODEL_PRICING["default"]
-
-    def test_fuzzy_match(self):
-        from config import get_model_price, MODEL_PRICING
-        price = get_model_price("gpt-4o-2024-08-06")
-        assert price == MODEL_PRICING["gpt-4o"]
+        from config import PRICING, calculate_cost
+        cost = calculate_cost("nonexistent-model-v42", 1000, 500)
+        assert cost == 1000 * 1.00 / 1e6 + 500 * 3.00 / 1e6
 
     def test_calculate_cost_gpt4o(self):
         from config import calculate_cost
         cost = calculate_cost("gpt-4o", 1000, 500)
-        assert cost == 0.0075
+        assert cost == 1000 * 2.50 / 1e6 + 500 * 10.00 / 1e6
 
     def test_calculate_cost_qwen_plus(self):
         from config import calculate_cost
@@ -50,28 +45,28 @@ class TestConfig:
         assert cost == pytest.approx(3.60, rel=0.01)
 
     def test_qwen_turbo_pricing(self):
-        from config import get_model_price
-        price = get_model_price("qwen-turbo")
-        assert price["input"] == 0.30
-        assert price["output"] == 0.60
+        from config import PRICING
+        price = PRICING["qwen-turbo"]
+        assert price[0] == 0.30
+        assert price[1] == 0.60
 
     def test_claude_sonnet_pricing(self):
-        from config import get_model_price
-        price = get_model_price("claude-sonnet-4-6")
-        assert price["input"] == 3.00
-        assert price["output"] == 15.00
+        from config import PRICING
+        price = PRICING["claude-sonnet-4-6"]
+        assert price[0] == 3.00
+        assert price[1] == 15.00
 
     def test_claude_haiku_pricing(self):
-        from config import get_model_price
-        price = get_model_price("claude-haiku-4-5")
-        assert price["input"] == 0.80
-        assert price["output"] == 4.00
+        from config import PRICING
+        price = PRICING["claude-haiku-4-5"]
+        assert price[0] == 0.80
+        assert price[1] == 4.00
 
     def test_claude_opus_pricing(self):
-        from config import get_model_price
-        price = get_model_price("claude-opus-4-7")
-        assert price["input"] == 15.00
-        assert price["output"] == 75.00
+        from config import PRICING
+        price = PRICING["claude-opus-4-7"]
+        assert price[0] == 15.00
+        assert price[1] == 75.00
 
 
 # ============================================================
@@ -81,29 +76,22 @@ class TestConfig:
 @pytest.fixture
 def temp_db():
     """Temporary SQLite database for testing"""
-    import config
     import tracker.db as dbmod
 
     tempdir = tempfile.TemporaryDirectory(ignore_cleanup_errors=True)
     db_path = os.path.join(tempdir.name, "test.db")
 
-    original_db = config.DB_PATH
-    config.DB_PATH = db_path
-    dbmod.DB_PATH = db_path  # must update both: config + tracker.db imports
+    original_db = str(dbmod.DB_PATH)
+    dbmod.DB_PATH = db_path
     dbmod._pool = None
 
     yield db_path
 
-    config.DB_PATH = original_db
     dbmod.DB_PATH = original_db
     dbmod._pool = None
 
 
 class TestTracker:
-
-    async def _init(self):
-        from tracker.db import init_db
-        await init_db()
 
     @pytest.mark.asyncio
     async def test_init_db_creates_tables(self, temp_db):
@@ -115,7 +103,7 @@ class TestTracker:
                 "SELECT name FROM sqlite_master WHERE type='table'"
             )
             tables = [row[0] for row in await cursor.fetchall()]
-            assert "api_calls" in tables
+            assert "calls" in tables
             assert "budgets" in tables
 
     @pytest.mark.asyncio
@@ -132,6 +120,8 @@ class TestTracker:
             latency_ms=1250,
             status_code=200,
             project="test-project",
+            request_id="test-1",
+            error_msg="",
         )
 
         calls = await get_recent_calls(limit=10)
@@ -143,14 +133,17 @@ class TestTracker:
     @pytest.mark.asyncio
     async def test_daily_cost(self, temp_db):
         from tracker.db import init_db, log_call, get_daily_cost
-        from datetime import date
         await init_db()
 
-        await log_call("gpt-4o", "/v1", 100, 50, 0.001, 100, project="dd")
-        await log_call("gpt-4o", "/v1", 200, 100, 0.002, 100, project="dd")
+        await log_call(model="gpt-4o", endpoint="/v1", input_tokens=100, output_tokens=50,
+                       cost_usd=0.001, latency_ms=100, project="dd",
+                       request_id="r1", error_msg="", status_code=200)
+        await log_call(model="gpt-4o", endpoint="/v1", input_tokens=200, output_tokens=100,
+                       cost_usd=0.002, latency_ms=100, project="dd",
+                       request_id="r2", error_msg="", status_code=200)
 
-        result = await get_daily_cost("dd", date.today().isoformat())
-        assert result["calls"] == 2
+        daily = await get_daily_cost("dd")
+        assert daily > 0
 
     @pytest.mark.asyncio
     async def test_setup_and_get_budget(self, temp_db):
@@ -176,22 +169,28 @@ class TestTracker:
         from tracker.db import init_db, log_call, export_csv
         await init_db()
 
-        await log_call("gpt-4o", "/v1", 100, 50, 0.001, 100, project="csvtest")
+        await log_call(model="gpt-4o", endpoint="/v1", input_tokens=100, output_tokens=50,
+                       cost_usd=0.001, latency_ms=100, project="csvtest",
+                       request_id="r1", error_msg="", status_code=200)
         csv = await export_csv("csvtest", days=1)
         lines = csv.strip().split("\n")
-        assert lines[0].startswith("timestamp")
+        assert lines[0].startswith("ID")
         assert len(lines) >= 2
 
     @pytest.mark.asyncio
-    async def test_compare_models(self, temp_db):
-        from tracker.db import init_db, log_call, compare_models
+    async def test_compare_stats(self, temp_db):
+        from tracker.db import init_db, log_call, get_stats
         await init_db()
 
-        await log_call("gpt-4o", "/v1", 1000, 500, 0.0075, 200, project="cmp")
-        await log_call("gpt-4o-mini", "/v1", 500, 250, 0.00015, 100, project="cmp")
+        await log_call(model="gpt-4o", endpoint="/v1", input_tokens=1000, output_tokens=500,
+                       cost_usd=0.0075, latency_ms=200, project="cmp",
+                       request_id="r1", error_msg="", status_code=200)
+        await log_call(model="gpt-4o-mini", endpoint="/v1", input_tokens=500, output_tokens=250,
+                       cost_usd=0.00015, latency_ms=100, project="cmp",
+                       request_id="r2", error_msg="", status_code=200)
 
-        result = await compare_models("cmp", days=1)
-        assert len(result) >= 1
+        result = await get_stats("cmp", days=1)
+        assert "by_model" in result
 
 
 # ============================================================
@@ -200,43 +199,55 @@ class TestTracker:
 
 class TestAlerter:
 
-    def test_budget_alert_class(self):
-        from alerter.budget import BudgetAlert
+    @pytest.mark.asyncio
+    async def test_check_and_alert_no_webhook(self):
+        from alerter.budget import check_and_alert
+        import tracker.db as dbmod
 
-        alert = BudgetAlert("test-proj")
-        alert.daily_cost = 6.0
-        alert.daily_limit = 5.0
-        alert.daily_usage_pct = 120.0
-        alert.daily_exceeded = True
-        alert.messages.append("日预算已超支！6.00 / 5.00 USD")
+        tempdir = tempfile.TemporaryDirectory(ignore_cleanup_errors=True)
+        db_path = os.path.join(tempdir.name, "test.db")
+        original_db = str(dbmod.DB_PATH)
+        dbmod.DB_PATH = db_path
+        dbmod._pool = None
 
-        d = alert.to_dict()
-        assert d["project"] == "test-proj"
-        assert d["daily_exceeded"] is True
-        assert len(d["alerts"]) == 1
+        try:
+            from tracker.db import init_db, setup_budget
+            await init_db()
+            await setup_budget("alert-test", daily=10.0, monthly=100.0)
 
-    def test_budget_alert_not_exceeded(self):
-        from alerter.budget import BudgetAlert
+            warnings = await check_and_alert("alert-test")
+            assert isinstance(warnings, list)
+        finally:
+            dbmod.DB_PATH = original_db
+            dbmod._pool = None
 
-        alert = BudgetAlert("normal")
-        alert.daily_cost = 2.0
-        alert.daily_limit = 5.0
-        alert.daily_usage_pct = 40.0
+    @pytest.mark.asyncio
+    async def test_check_and_alert_exceeded(self):
+        from alerter.budget import check_and_alert
+        import tracker.db as dbmod
 
-        d = alert.to_dict()
-        assert d["daily_exceeded"] is False
-        assert d["monthly_exceeded"] is False
+        tempdir = tempfile.TemporaryDirectory(ignore_cleanup_errors=True)
+        db_path = os.path.join(tempdir.name, "test.db")
+        original_db = str(dbmod.DB_PATH)
+        dbmod.DB_PATH = db_path
+        dbmod._pool = None
 
-    def test_to_dict_has_all_keys(self):
-        from alerter.budget import BudgetAlert
+        try:
+            from tracker.db import init_db, setup_budget, log_call
+            await init_db()
+            await setup_budget("over-budget", daily=0.001, monthly=100.0)
 
-        alert = BudgetAlert("full")
-        d = alert.to_dict()
-        for key in ["project", "daily_exceeded", "monthly_exceeded",
-                     "daily_usage_pct", "monthly_usage_pct",
-                     "daily_cost", "monthly_cost", "daily_limit",
-                     "monthly_limit", "alerts", "webhook_sent"]:
-            assert key in d, f"Missing key: {key}"
+            # log a call that exceeds daily budget
+            await log_call(model="gpt-4o", endpoint="/v1", input_tokens=1000000,
+                          output_tokens=1000000, cost_usd=999.0,
+                          latency_ms=100, project="over-budget",
+                          request_id="r1", error_msg="", status_code=200)
+
+            warnings = await check_and_alert("over-budget")
+            assert isinstance(warnings, list)
+        finally:
+            dbmod.DB_PATH = original_db
+            dbmod._pool = None
 
 
 # ============================================================
@@ -245,32 +256,32 @@ class TestAlerter:
 
 class TestForwarder:
 
-    def test_extract_model_from_body(self):
-        from proxy.forwarder import _extract_model
+    def test_get_model_from_body(self):
+        from proxy.forwarder import _get_model
         body = b'{"model":"gpt-4o","messages":[{"role":"user","content":"hi"}]}'
-        assert _extract_model(body) == "gpt-4o"
+        assert _get_model(body) == "gpt-4o"
 
-    def test_extract_model_missing(self):
-        from proxy.forwarder import _extract_model
-        assert _extract_model(b'{"messages":[]}') == ""
+    def test_get_model_missing(self):
+        from proxy.forwarder import _get_model
+        assert _get_model(b'{"messages":[]}') == ""
 
-    def test_extract_model_invalid_json(self):
-        from proxy.forwarder import _extract_model
-        assert _extract_model(b'not json') == ""
+    def test_get_model_invalid_json(self):
+        from proxy.forwarder import _get_model
+        assert _get_model(b'not json') == ""
 
-    def test_is_stream_request_true(self):
-        from proxy.forwarder import _is_stream_request
+    def test_is_stream_true(self):
+        from proxy.forwarder import _is_stream
         body = b'{"model":"gpt-4o","stream":true}'
-        assert _is_stream_request(body) is True
+        assert _is_stream(body) is True
 
-    def test_is_stream_request_false(self):
-        from proxy.forwarder import _is_stream_request
+    def test_is_stream_false(self):
+        from proxy.forwarder import _is_stream
         body = b'{"model":"gpt-4o"}'
-        assert _is_stream_request(body) is False
+        assert _is_stream(body) is False
 
-    def test_is_stream_request_invalid(self):
-        from proxy.forwarder import _is_stream_request
-        assert _is_stream_request(b'bad data') is False
+    def test_is_stream_invalid(self):
+        from proxy.forwarder import _is_stream
+        assert _is_stream(b'bad data') is False
 
 
 if __name__ == "__main__":

@@ -1,12 +1,13 @@
 """AI Cost Sentinel — Streamlit 仪表盘"""
 
+import os
 import sqlite3
 from pathlib import Path
 import pandas as pd
 import streamlit as st
 from datetime import date, timedelta
 
-DB_PATH = Path(__file__).parent.parent / "sentinel-proxy" / "sentinel.db"
+DB_PATH = Path(os.environ.get("DB_PATH", Path(__file__).parent.parent / "sentinel-proxy" / "sentinel.db"))
 PRICING = {
     "gpt-4o": (2.50, 10.00), "gpt-4o-mini": (0.15, 0.60), "gpt-4-turbo": (10.00, 30.00),
     "claude-sonnet-4-6": (3.00, 15.00), "claude-opus-4-7": (15.00, 75.00), "claude-haiku-4-5": (0.80, 4.00),

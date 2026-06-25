@@ -37,7 +37,7 @@ async def lifespan(app: FastAPI):
     logger.info("AI Cost Sentinel 关闭")
 
 
-app = FastAPI(title="AI Cost Sentinel", version="0.2.0", lifespan=lifespan)
+app = FastAPI(title="AI Cost Sentinel", version="0.3.0", lifespan=lifespan)
 
 
 @app.api_route("/v1/{path:path}", methods=["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"])

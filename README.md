@@ -53,7 +53,7 @@ curl "http://localhost:8000/sentinel/export/csv?project=myapp&days=30" > costs.c
 
 ```bash
 pip install streamlit pandas plotly
-streamlit run sentinel-proxy/dashboard.py   # → :8501
+streamlit run dashboard/app.py   # → :8501
 ```
 
 ## 定价参考

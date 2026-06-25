@@ -10,19 +10,20 @@ cd ai-cost-sentinel
 cd sentinel-proxy
 pip install -r requirements.txt
 
-# Dashboard (Java)
-cd sentinel-dashboard
-./mvnw spring-boot:run
+# Dashboard (Streamlit)
+cd dashboard
+pip install -r requirements.txt
+streamlit run app.py
 ```
 
 ## Development
 
 ```bash
-# Run proxy tests
-python tests/test_sentinel.py
+# Run mock tests (no API key needed)
+python tests/test_mock.py
 
-# Java tests
-cd sentinel-dashboard && ./mvnw test
+# Run integration tests (needs API key)
+python tests/test_sentinel.py
 ```
 
 ## Adding Model Pricing
@@ -30,7 +31,7 @@ cd sentinel-dashboard && ./mvnw test
 Add entries to `PRICING` in `sentinel-proxy/config.py`:
 
 ```python
-"model-id": {"input": 0.00, "output": 0.00}  # per 1M tokens
+"model-id": (input_price, output_price)  # per 1M tokens
 ```
 
 ## Pull Request

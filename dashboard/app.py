@@ -8,12 +8,6 @@ import streamlit as st
 from datetime import date, timedelta
 
 DB_PATH = Path(os.environ.get("DB_PATH", Path(__file__).parent.parent / "sentinel-proxy" / "sentinel.db"))
-PRICING = {
-    "gpt-4o": (2.50, 10.00), "gpt-4o-mini": (0.15, 0.60), "gpt-4-turbo": (10.00, 30.00),
-    "claude-sonnet-4-6": (3.00, 15.00), "claude-opus-4-7": (15.00, 75.00), "claude-haiku-4-5": (0.80, 4.00),
-    "deepseek-chat": (0.27, 1.10), "deepseek-reasoner": (0.55, 2.19),
-    "qwen-plus": (0.80, 2.80), "qwen-turbo": (0.30, 0.60), "qwen-max": (2.40, 9.60),
-}
 
 st.set_page_config(page_title="AI Cost Sentinel", page_icon="📊", layout="wide")
 st.title("AI Cost Sentinel — 成本追踪仪表盘")

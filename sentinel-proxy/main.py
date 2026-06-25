@@ -1,6 +1,7 @@
 """AI Cost Sentinel 代理服务"""
 
 from __future__ import annotations
+import asyncio
 import logging
 from contextlib import asynccontextmanager
 
@@ -14,6 +15,7 @@ from tracker.db import (
     export_csv, get_daily_cost, get_monthly_cost,
 )
 from proxy.forwarder import forward_request, ALLOWED_PREFIXES
+from alerter.budget import check_and_alert
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
 logger = logging.getLogger(__name__)
@@ -86,6 +88,9 @@ async def proxy_v1(request: Request, path: str):
     except Exception as e:
         logger.error(f"代理失败: {e}")
         return JSONResponse(status_code=502, content={"error": "代理请求失败", "details": str(e)})
+    # 异步触发预算告警（不阻塞响应）
+    asyncio.create_task(check_and_alert(project))
+
     if result["is_stream"]:
         return StreamingResponse(
             iter([result["body"]]),

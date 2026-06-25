@@ -52,7 +52,7 @@ curl "http://localhost:8000/sentinel/export/csv?project=myapp&days=30" > costs.c
 仪表盘单独启动：
 
 ```bash
-pip install streamlit pandas plotly
+pip install streamlit pandas
 streamlit run dashboard/app.py   # → :8501
 ```
 

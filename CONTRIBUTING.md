@@ -3,7 +3,7 @@
 ## Getting Started
 
 ```bash
-git clone https://github.com/JING04-PRODUCER/ai-cost-sentinel.git
+git clone https://github.com/UniqueDevJing/ai-cost-sentinel.git
 cd ai-cost-sentinel
 
 # Proxy (Python)

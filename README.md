@@ -4,7 +4,7 @@
 
 支持 OpenAI、DeepSeek、Qwen、智谱等等所有 OpenAI 兼容接口。
 
-[![CI](https://github.com/JING04-PRODUCER/ai-cost-sentinel/actions/workflows/python-test.yml/badge.svg)](https://github.com/JING04-PRODUCER/ai-cost-sentinel/actions/workflows/python-test.yml)
+[![CI](https://github.com/UniqueDevJing/ai-cost-sentinel/actions/workflows/python-test.yml/badge.svg)](https://github.com/UniqueDevJing/ai-cost-sentinel/actions/workflows/python-test.yml)
 [![Python](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 

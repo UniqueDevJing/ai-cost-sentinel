@@ -1,5 +1,7 @@
 # AI Cost Sentinel
 
+> 一行 `base_url` 切换，把每一次 LLM 调用的 Token 与费用变成可观测、可设预算、可复盘的数据。
+
 一个 API 代理，架在你应用和 AI 服务之间，自动记录每次调用的 Token 消耗和费用。不用改业务代码，不用接 SDK，只改一行 `base_url`。
 
 支持 OpenAI、DeepSeek、Qwen、智谱等等所有 OpenAI 兼容接口。

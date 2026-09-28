@@ -12,3 +12,6 @@ venv/
 *.local
 secrets/**
 target/
+
+# git filter-branch 残留
+.git-rewrite/
